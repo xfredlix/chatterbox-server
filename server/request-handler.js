@@ -18,6 +18,7 @@ var defaultCorsHeaders = {
   'access-control-max-age': 10 // Seconds.
 };
 
+var resultsObj = {results: []}; 
 var requestHandler = function(request, response) {
   // Request and Response come from node's http module.
   //
@@ -34,32 +35,44 @@ var requestHandler = function(request, response) {
   // debugging help, but you should always be careful about leaving stray
   // // console.logs in your code.
   // debugger;
-  console.log('Serving request type ' + request.method + ' for url ' + request.body);
+  console.log('Serving request type ' + request.method + ' for url ' + request.url);
   // console.log(request);
 
   // The outgoing status.
-  var resultsObj = {results: []};
   var statusCode = 200;
   var headers = defaultCorsHeaders;
 
   if (request.method === 'POST') {
     statusCode = 201;
   }
-  request.on('data', function(data) {
-    resultsObj.results.push(JSON.parse(data.toString()));
-  });
+
+  if (request.method === 'GET') {
+    response.end(JSON.stringify(resultsObj));
+  }
   // See the note below about CORS headers.
 
   // Tell the client we are sending them plain text.
   //
   // You will need to change this if you are sending something
   // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = 'jsonp';
+  headers['Content-Type'] = 'application/json';
 
   // .writeHead() writes to the request line and headers of the response,
   // which includes the status and all headers.
   response.writeHead(statusCode, headers);
-
+  
+  new Promise( (resolve, reject) => {
+    request.on('data', function(data) {
+      resolve(data);
+    });
+  }).then(function(data) {
+    resultsObj.results.push(JSON.parse(data.toString()));
+    var temp = JSON.stringify(resultsObj);
+    console.log(temp);
+    response.end(temp);
+  }).catch(function(err) {
+    console.log(err);
+  });
   // Make sure to always call response.end() - Node may not send
   // anything back to the client until you do. The string you pass to
   // response.end() will be the body of the response - i.e. what shows
@@ -69,7 +82,6 @@ var requestHandler = function(request, response) {
   // node to actually send all the data over to the client.
   
 
-  response.end(JSON.stringify(resultsObj));
 };
 
 module.exports = requestHandler;
